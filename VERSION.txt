@@ -1,0 +1,3 @@
+Pegboard Studio 1.0.1
+Ready to host: index.html
+Reset uses an in-page confirmation and supports Undo.

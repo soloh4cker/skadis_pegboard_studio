@@ -1,0 +1,16 @@
+import {build} from 'esbuild';
+import {readFile,writeFile,mkdir,readdir} from 'node:fs/promises';
+import {zipSync,strToU8} from 'fflate';
+const {version}=JSON.parse(await readFile('package.json','utf8'));
+const result=await build({entryPoints:['src/app.js'],bundle:true,write:false,format:'iife',platform:'browser',external:['node:module'],target:'es2022',minify:true,legalComments:'eof',define:{'import.meta.url':'globalThis.location.href'}});
+const template=await readFile('index.template.html','utf8'),css=await readFile('src/style.css','utf8'),notices=await readFile('THIRD_PARTY_NOTICES.txt','utf8');
+const js=result.outputFiles[0].text.replaceAll('</script','<\\/script');
+const html=template.replace('/* STYLES */',()=>css).replace('/* APP */',()=>js).replaceAll('/* VERSION */',version).replace('</body>',()=>'<script type="text/plain" id="third-party-notices">'+notices.replaceAll('</script','<\\/script')+'</script></body>');
+await mkdir('dist',{recursive:true});await writeFile('dist/index.html',html);await writeFile('index.html',html);
+await writeFile('dist/Pegboard_Studio.html',html);
+const files={'index.html':strToU8(html),'Pegboard_Studio.html':strToU8(html),'dist/index.html':strToU8(html),'VERSION.txt':strToU8(`Pegboard Studio ${version}\nReady to host: index.html\nReset uses an in-page confirmation and supports Undo.\n`)};
+for(const file of['index.template.html','build.mjs','verify.mjs','package.json','package-lock.json','README.md','THIRD_PARTY_NOTICES.txt'])files[file]=new Uint8Array(await readFile(file));
+for(const file of await readdir('src'))files['src/'+file]=new Uint8Array(await readFile('src/'+file));
+const archive=zipSync(files,{level:9});
+await writeFile(`dist/Pegboard_Studio_v${version}.zip`,archive);await writeFile('dist/Pegboard_Studio_Source.zip',archive);
+console.log(`Built Pegboard Studio ${version}: ready-to-host HTML, offline HTML, and source ZIP.`);
